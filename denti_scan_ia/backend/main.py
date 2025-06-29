@@ -68,11 +68,26 @@ async def registro(
     nombre: str = Form(...),
     apellido: str = Form(...),
     email: str = Form(...),
+    fecha_nacimiento: str = Form(...),
     imagen: UploadFile = File(...)
 ):
-    # Aquí se integrará MongoDB y el modelo de IA en el futuro
-    # Por ahora solo se simula la recepción
-    return {"status": "ok", "nombre": nombre, "apellido": apellido, "email": email, "filename": imagen.filename}
+    image_bytes = await imagen.read()
+    image_filename = f"{nombre}{apellido}{datetime.now().strftime('%Y%m%d_%H%M%S')}_{imagen.filename}"
+    with open(image_filename, "wb") as f:
+        f.write(image_bytes)
+
+    if client:
+        dental_scans_collection.insert_one({
+            "nombre": nombre,
+            "apellido": apellido,
+            "email": email,
+            "fecha_nacimiento": fecha_nacimiento,
+            "image_filename": image_filename,
+            "fecha": datetime.now()
+        })
+        return {"status": "ok", "nombre": nombre, "apellido": apellido, "email": email, "fecha_nacimiento": fecha_nacimiento, "filename": image_filename}
+    else:
+        return {"status": "error", "message": "No se pudo conectar a MongoDB"}
 
 # To run this application:
 # 1. Make sure you have uvicorn installed: pip install uvicorn
