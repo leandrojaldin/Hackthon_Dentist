@@ -3,12 +3,16 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from datetime import datetime
+import os
 
 app = FastAPI()
 
 # CORS configuration
 origins = [
-    "http://localhost:3000",  # Allow frontend origin
+    "http://localhost:5173",  # Frontend development server
+    "http://localhost:3000",  # Otro puerto común para desarrollo
+    "http://127.0.0.1:5173",  # Alternativa a localhost
+    "http://127.0.0.1:3000"   # Alternativa a localhost
 ]
 
 app.add_middleware(
@@ -17,6 +21,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # MongoDB connection (skeleton)
@@ -37,27 +42,71 @@ async def health_check():
     return {"status": "ok"}
 
 @app.post("/analyze_dental_image")
-async def analyze_dental_image(image_file: UploadFile = File(...)):
+async def analyze_dental_image(
+    dentalImage: UploadFile = File(...),
+    name: str = Form(...),
+    email: str = Form(...),
+    birthDate: str = Form(...)
+):
     """
-    Endpoint preparado para integrar el modelo de IA entrenado.
-    Recibe una imagen dental, la procesa y retorna el diagnóstico.
+    Endpoint para procesar imágenes dentales y guardar los datos del paciente.
     """
-    # Aquí se integrará la lógica para cargar el modelo y hacer la predicción
-    # Por ahora, solo simula la recepción y respuesta
-    print(f"Received image file: {image_file.filename}, content type: {image_file.content_type}")
+    try:
+        print(f"Recibiendo datos - Nombre: {name}, Email: {email}, Fecha de Nacimiento: {birthDate}")
+        print(f"Archivo recibido: {dentalImage.filename}, tipo: {dentalImage.content_type}")
 
-    # Simulación de respuesta del modelo IA
-    mock_diagnosis = {
-        "diagnosis_result": "Posible Caries",
-        "confidence_score": 0.88,
-        "recommendations": "Se recomienda visitar al odontólogo para una revisión profesional lo antes posible.",
-        "highlighted_image_url": "/mock_images/caries_highlighted.png",
-        "warning_message": "Esta detección es solo una herramienta de cribado inicial y no reemplaza un diagnóstico médico profesional."
-    }
+        # Leer el contenido de la imagen
+        image_data = await dentalImage.read()
+        
+        # Crear un nombre único para el archivo
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{name.replace(' ', '_')}_{timestamp}_{dentalImage.filename}"
+        
+        # Guardar la imagen en el sistema de archivos (opcional)
+        os.makedirs("uploads", exist_ok=True)
+        file_path = os.path.join("uploads", filename)
+        with open(file_path, "wb") as f:
+            f.write(image_data)
 
-    # Aquí se podría guardar el resultado en la base de datos si se desea
+        # Crear documento para MongoDB
+        patient_data = {
+            "name": name,
+            "email": email,
+            "birth_date": birthDate,
+            "image_filename": filename,
+            "file_path": file_path,
+            "upload_date": datetime.now(),
+            "status": "processed"
+        }
 
-    return JSONResponse(content=mock_diagnosis)
+        # Insertar en MongoDB
+        if client is not None:
+            result = dental_scans_collection.insert_one(patient_data)
+            print(f"Datos guardados en MongoDB con ID: {result.inserted_id}")
+        else:
+            print("Advertencia: No se pudo conectar a MongoDB")
+
+        # Simular respuesta del modelo de IA
+        response_data = {
+            "status": "success",
+            "message": "Imagen procesada correctamente",
+            "data": {
+                "patient_name": name,
+                "analysis_id": str(result.inserted_id) if client else "none",
+                "diagnosis": "Caries detectada",
+                "confidence": 0.92,
+                "recommendations": [
+                    "Visita a un odontólogo en los próximos 7 días",
+                    "Realiza una limpieza dental profesional"
+                ]
+            }
+        }
+
+        return JSONResponse(content=response_data)
+
+    except Exception as e:
+        print(f"Error al procesar la solicitud: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def read_root():
@@ -88,7 +137,3 @@ async def registro(
         return {"status": "ok", "nombre": nombre, "apellido": apellido, "email": email, "fecha_nacimiento": fecha_nacimiento, "filename": image_filename}
     else:
         return {"status": "error", "message": "No se pudo conectar a MongoDB"}
-
-# To run this application:
-# 1. Make sure you have uvicorn installed: pip install uvicorn
-# 2. Run from your terminal: uvicorn main:app --reload --port 8000

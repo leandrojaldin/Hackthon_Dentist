@@ -151,4 +151,3 @@ Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) par
 ## ✉️ Contacto
 
 ¿Preguntas o comentarios? Por favor abre un issue en el repositorio.
-
