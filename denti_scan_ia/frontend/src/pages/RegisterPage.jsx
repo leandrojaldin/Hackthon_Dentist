@@ -26,31 +26,65 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validar que todos los campos estén completos
+    if (!formData.name.trim()) {
+      alert('Por favor, ingresa tu nombre completo.');
+      return;
+    }
+    
+    if (!formData.email.trim()) {
+      alert('Por favor, ingresa tu correo electrónico.');
+      return;
+    }
+    
+    if (!formData.birthDate) {
+      alert('Por favor, selecciona tu fecha de nacimiento.');
+      return;
+    }
+    
     if (!image) {
       alert('Por favor, sube una imagen dental.');
       return;
     }
+    
     setIsLoading(true);
 
     const data = new FormData();
-    data.append('name', formData.name);
-    data.append('email', formData.email);
+    data.append('name', formData.name.trim());
+    data.append('email', formData.email.trim());
     data.append('birthDate', formData.birthDate);
     data.append('dentalImage', image);
 
     try {
+      console.log('Enviando datos:', {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        birthDate: formData.birthDate,
+        imageName: image.name
+      });
+      
       // Aquí va la llamada a tu backend FastAPI
       const response = await fetch('http://localhost:8000/analyze_dental_image', {
         method: 'POST',
         body: data,
       });
       
+      if (!response.ok) {
+        throw new Error(`Error del servidor: ${response.status}`);
+      }
+      
       const result = await response.json();
       console.log('Análisis recibido:', result);
-      alert('¡Análisis completado! Revisa la consola para ver los resultados.');
+      
+      if (result.status === 'success') {
+        alert(`¡Análisis completado exitosamente!\n\nDiagnóstico: ${result.data.diagnosis}\nConfianza: ${(result.data.confidence * 100).toFixed(1)}%\n\nRecomendaciones:\n${result.data.recommendations.join('\n')}`);
+      } else {
+        alert(`Error: ${result.message || 'Error desconocido'}`);
+      }
     } catch (error) {
       console.error('Error al enviar el formulario:', error);
-      alert('Hubo un error al procesar tu solicitud.');
+      alert(`Hubo un error al procesar tu solicitud: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -67,16 +101,48 @@ const RegisterPage = () => {
           {/* Columna de Datos */}
           <div className="space-y-6">
             <div>
-              <label htmlFor="name" className="block mb-2 text-sm font-medium">Nombre Completo</label>
-              <input type="text" name="name" id="name" onChange={handleInputChange} className="w-full bg-gray-700/50 border border-gray-600 rounded-lg p-2.5 focus:ring-[#3A86FF] focus:border-[#3A86FF]" required />
+              <label htmlFor="name" className="block mb-2 text-sm font-medium">
+                Nombre Completo <span className="text-red-400">*</span>
+              </label>
+              <input 
+                type="text" 
+                name="name" 
+                id="name" 
+                value={formData.name}
+                onChange={handleInputChange} 
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg p-2.5 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-colors" 
+                placeholder="Ej: Juan Pérez"
+                required 
+              />
             </div>
             <div>
-              <label htmlFor="email" className="block mb-2 text-sm font-medium">Correo Electrónico</label>
-              <input type="email" name="email" id="email" onChange={handleInputChange} className="w-full bg-gray-700/50 border border-gray-600 rounded-lg p-2.5 focus:ring-[#3A86FF] focus:border-[#3A86FF]" required />
+              <label htmlFor="email" className="block mb-2 text-sm font-medium">
+                Correo Electrónico <span className="text-red-400">*</span>
+              </label>
+              <input 
+                type="email" 
+                name="email" 
+                id="email" 
+                value={formData.email}
+                onChange={handleInputChange} 
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg p-2.5 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-colors" 
+                placeholder="ejemplo@email.com"
+                required 
+              />
             </div>
             <div>
-              <label htmlFor="birthDate" className="block mb-2 text-sm font-medium">Fecha de Nacimiento</label>
-              <input type="date" name="birthDate" id="birthDate" onChange={handleInputChange} className="w-full bg-gray-700/50 border border-gray-600 rounded-lg p-2.5 focus:ring-[#3A86FF] focus:border-[#3A86FF]" required />
+              <label htmlFor="birthDate" className="block mb-2 text-sm font-medium">
+                Fecha de Nacimiento <span className="text-red-400">*</span>
+              </label>
+              <input 
+                type="date" 
+                name="birthDate" 
+                id="birthDate" 
+                value={formData.birthDate}
+                onChange={handleInputChange} 
+                className="w-full bg-gray-700/50 border border-gray-600 rounded-lg p-2.5 focus:ring-[#3A86FF] focus:border-[#3A86FF] transition-colors" 
+                required 
+              />
             </div>
           </div>
           {/* Columna de Imagen */}
