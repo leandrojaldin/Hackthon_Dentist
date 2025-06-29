@@ -40,7 +40,7 @@ const RegisterPage = () => {
 
     try {
       // Aquí va la llamada a tu backend FastAPI
-      const response = await fetch('http://localhost:8000/analyze', {
+      const response = await fetch('http://localhost:8000/analyze_dental_image', {
         method: 'POST',
         body: data,
       });
