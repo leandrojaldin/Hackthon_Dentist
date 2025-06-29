@@ -1,28 +1,38 @@
 import streamlit as st
 from PIL import Image
 from datetime import datetime
-from mongo_utils import guardar_imagen_dentiscan_local
 import requests
 
 st.title("🦷 DentiScan IA - Demo Web")
 
-usuario = st.text_input("👤 Nombre de usuario:")
+usuario = st.text_input("👤 Nombre completo:")
+correo = st.text_input("📧 Correo electrónico:")
+fecha_nacimiento = st.text_input("📅 Fecha de nacimiento (dd/mm/aaaa):")
 uploaded_file = st.file_uploader("📷 Sube una imagen de tu boca", type=["jpg", "jpeg", "png", "webp"])
 
-if uploaded_file and usuario:
+if uploaded_file and usuario and correo and fecha_nacimiento:
     imagen = Image.open(uploaded_file)
     imagen.save("temp.jpg")
-    # Llamada a la API
+    # Separar nombre y apellido si es posible
+    partes_nombre = usuario.strip().split()
+    nombre = partes_nombre[0] if len(partes_nombre) > 0 else ""
+    apellido = " ".join(partes_nombre[1:]) if len(partes_nombre) > 1 else ""
     with open("temp.jpg", "rb") as img_file:
-        files = {"image_file": img_file}
+        files = {"imagen": img_file}
+        data = {
+            "nombre": nombre,
+            "apellido": apellido,
+            "email": correo,
+            "fecha_nacimiento": fecha_nacimiento
+        }
         try:
-            response = requests.post("http://localhost:8000/analyze_dental_image", files=files)
+            response = requests.post("http://localhost:8000/registro", data=data, files=files)
             if response.status_code == 200:
-                data = response.json()
-                diagnostico = data.get("diagnosis_result", "Sin diagnóstico")
-                recomendacion = data.get("recommendations", "Sin recomendación")
+                res = response.json()
+                diagnostico = "Registro exitoso"
+                recomendacion = f"Usuario guardado: {res.get('nombre', '')} {res.get('apellido', '')}"
             else:
-                diagnostico = "Error al analizar la imagen"
+                diagnostico = "Error al registrar usuario"
                 recomendacion = "Intenta nuevamente más tarde."
         except Exception as e:
             diagnostico = "No se pudo conectar con la API"
@@ -31,8 +41,3 @@ if uploaded_file and usuario:
     st.image(imagen, caption="✅ Imagen cargada", use_column_width=True)
     st.markdown(f"**🩺 Diagnóstico:** {diagnostico}")
     st.markdown(f"**📌 Recomendación:** {recomendacion}")
-
-    if st.button("💾 Guardar diagnóstico"):
-        nombre_img = f"{usuario}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        guardar_imagen_dentiscan_local("temp.jpg", nombre_img, usuario, diagnostico, recomendacion)
-        st.success("🎉 Guardado correctamente en MongoDB local.")
